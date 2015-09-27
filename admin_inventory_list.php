@@ -42,15 +42,32 @@ include("authconf.php");
         /*** execute the prepared statement ***/
         $stmt->execute();
 
-
         //Get the number of rows returned to check if there is any inventory for this sellerid
         $count = $stmt->rowCount();
 
 
-        //Count to list 8 items per page
-        $items_per_page = isset($_POST['page_dropdown']) ? $_POST['page_dropdown'] : 4;
+        // Declare minimum items per page and maximum items per page
+
+        $min_ipp = 10;
+        $max_ipp = 50;
+
+
+        //Get the number of items per page (ipp) or set it to a default value
+        $items_per_page = isset($_GET['ipp']) ? $_GET['ipp'] : $min_ipp;
+
+        if (isset($_GET['ipp']))
+        {
+            $ipp = $_GET['ipp'];
+        }
+        else
+        {
+
+            $ipp = $items_per_page;
+        }
+
+
+
         $items_per_page = intval($items_per_page);
-        //$items_per_page = 4;
         $total_pages = $count/$items_per_page;
         $total_pages = ceil($total_pages);
         
@@ -85,7 +102,6 @@ include("authconf.php");
                 {
                     $offset=($page_num*$items_per_page)-$items_per_page;
 
-                    
                 }
 
 
@@ -127,13 +143,13 @@ include("authconf.php");
                     
                     if ($i == $page_num)
                     {
-                        $pagination .= "<li class='active'> <a href='admin_inventory_list.php?page=$i'> $i </a> </li>";   
+                        $pagination .= "<li class='active'> <a href='admin_inventory_list.php?page=$i&ipp=$ipp'> $i </a> </li>";   
 
                     }
 
                     else
                     {
-                        $pagination .= "<li> <a href='admin_inventory_list.php?page=$i'> $i </a> </li>";   
+                        $pagination .= "<li> <a href='admin_inventory_list.php?page=$i&ipp=$ipp'> $i </a> </li>";   
                     }
                     
                 }
@@ -159,13 +175,12 @@ include("authconf.php");
                         $category = $row['category'];
                         $subcategory = $row['subcategory'];
                         $date_added = strftime("%b %d, %Y at %H:%M", strtotime($row["date_added"]));
-                        //$product_list .= "Product ID: $id - <strong>$product_name</strong> - $$price - $details - $category -  $date_added &nbsp; &nbsp; &nbsp; <a href='inventory_edit.php?pid=$id'>edit</a> &bull; <a href='inventory_list.php?deleteid=$id'>delete</a><br />";
 
                         $product_list .= "
                                             <div cass='row'>
                                             <div class='col-md-3 portfolio-item'> <h5 > <strong> $product_name </strong></h5>
-                                            <a style='text-decoration: none;'href='#'> 
-                                            <img class='img-responsive' src='product_images/$id.png' alt='' >  <h4> <i class='fa fa-inr'></i>$price </h4> <h6> $details <br> uploaded / edited on $date_added </h6>
+                                            <a href='#'> 
+                                            <img class='img-responsive' src='product_images/$id.png' alt='' >  <h4> <i class='fa fa-inr'></i>$price </h4> <h6> $details <br> ( Uploaded / edited on $date_added ) </h6>
                                             </a>
                                             </div>
                                             </div>";
@@ -233,7 +248,6 @@ function dropdown($name, array $options, $selected)
         <link rel="icon" href="styles/favicon.ico" type="image/x-icon">
     </head>
 
-
         <!-- Navigation -->
         <nav class="navbar navbar-inverse navbar-static-top" role="navigation">
           <div class="container">
@@ -279,49 +293,84 @@ function dropdown($name, array $options, $selected)
                 </div>
                 <div class"col-log-2">
 
-                    <form id="dropdown" name="dropdown" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]);?>" method="post">
+                    <form id="dropdown" name="dropdown" action="<?php echo htmlspecialchars($_SERVER["PHP_SELF"]);?>" method="get">
                     
                         <label class="page-header"> Items per page
                         
                             <?php 
-                                $name = 'page_dropdown';
-                                $options = array(10 => '10',20 => '20',40 => '40',60 => '60');
-                                $selected = $_POST['page_dropdown'];
+                                $name = 'ipp';
+                                $options = array();
+
+                                for ($ipp_track = $min_ipp; $ipp_track <= $max_ipp; $ipp_track = $ipp_track+10) 
+                                { 
+                                    
+                                    $options[$ipp_track] = $ipp_track;
+
+                                }
+                        
+                                $selected = isset($_GET['ipp']) ? $_GET['ipp'] : $items_per_page;
                                 echo dropdown($name,$options,$selected);
                             ?>
 
-                        <input class="btn btn-primary" type="submit" id="dropdown" name="dropdown" value="submit" />
+                        <input class="btn-primary" type="submit" value="submit" />
                         </label>
                     </form>
                 </div>
 
             </div>
 
-        <div class="text-center">
-            <p > <?php echo "$product_list"; ?></p>
-            <hr>
-        </div>
-
-            <!-- Pagination -->
+            <!-- Top Pagination -->
             <div class="row text-center">
                 <div class="col-lg-12">
                     <ul class="pagination">
                         <li>
-                            <a href="admin_inventory_list.php?page=1">&laquo&laquo;</a>
+                            <a href="admin_inventory_list.php?page=1&ipp=<?php if ($ipp < $min_ipp) {echo $min_ipp;} elseif($ipp > $max_ipp){echo $max_ipp;} else {echo $ipp;} ?>">&laquo&laquo;</a>
                         </li>
 
                         <li>
-                            <a href="admin_inventory_list.php?page=<?php if ($_GET['page'] <=1) { echo 1;} else { $page = $_GET['page']; $page = $page - 1; echo $page; } ?>">&laquo;</a>
+                            <a href="admin_inventory_list.php?page=<?php if (!isset($_GET['page'])) {echo 1;} elseif ($_GET['page'] <=1) { echo 1;} elseif ($_GET['page'] > $total_pages) { $page = $total_pages - 1; echo $page;} else { $page = $_GET['page']; $page = $page - 1; echo $page; } ?>&ipp=<?php if ($ipp < $min_ipp) {echo $min_ipp;} elseif($ipp > $max_ipp){echo $max_ipp;} else {echo $ipp;} ?>">&laquo;</a>
                         </li>
 
                             <?php echo "$pagination"; ?>
 
                         <li>
-                            <a href="admin_inventory_list.php?page=<?php if ($_GET['page'] >= $total_pages) { echo $total_pages; } else {$page = $_GET['page']; $page = $page + 1; echo $page;} ?>">&raquo;</a>
+                            <a href="admin_inventory_list.php?page=<?php if (!isset($_GET['page'])) { $page=2; echo $page;} elseif ($_GET['page'] >= $total_pages) { echo $total_pages; }  else {$page = $_GET['page']; $page = $page + 1; echo $page;} ?>&ipp=<?php if ($ipp < $min_ipp) {echo $min_ipp;} elseif($ipp > $max_ipp){echo $max_ipp;} else {echo $ipp;} ?>">&raquo;</a>
                         </li>
 
                         <li>
-                            <a href="admin_inventory_list.php?page=<?php echo $total_pages ?>">&raquo&raquo;</a>
+                            <a href="admin_inventory_list.php?page=<?php echo $total_pages ?>&ipp=<?php if ($ipp < $min_ipp) {echo $min_ipp;} elseif($ipp > $max_ipp){echo $max_ipp;} else {echo $ipp;} ?>">&raquo&raquo;</a>
+                        </li>
+                    </ul>
+                 </div>
+            </div>
+
+            <!-- Display product list -->
+
+            <div class="text-center">
+                <p > <?php echo "$product_list"; ?></p>
+                <hr>
+            </div>
+
+            <!-- Bottom Pagination -->
+            <div class="row text-center">
+                <div class="col-lg-12">
+                    <ul class="pagination">
+                        <li>
+                            <a href="admin_inventory_list.php?page=1&ipp=<?php echo $ipp; ?>">&laquo&laquo;</a>
+                        </li>
+
+                        <li>
+                            <a href="admin_inventory_list.php?page=<?php if (!isset($_GET['page'])) {echo 1;} elseif ($_GET['page'] <=1) { echo 1;} elseif ($_GET['page'] > $total_pages) { $page = $total_pages - 1; echo $page;} else { $page = $_GET['page']; $page = $page - 1; echo $page; } ?>&ipp=<?php echo $ipp; ?>">&laquo;</a>
+                        </li>
+
+                            <?php echo "$pagination"; ?>
+
+                        <li>
+                            <a href="admin_inventory_list.php?page=<?php if (!isset($_GET['page'])) { $page=2; echo $page;} elseif ($_GET['page'] >= $total_pages) { echo $total_pages; }  else {$page = $_GET['page']; $page = $page + 1; echo $page;} ?>&ipp=<?php echo $ipp; ?>">&raquo;</a>
+                        </li>
+
+                        <li>
+                            <a href="admin_inventory_list.php?page=<?php echo $total_pages ?>&ipp=<?php echo $ipp; ?>">&raquo&raquo;</a>
                         </li>
                     </ul>
                  </div>
